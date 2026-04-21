@@ -41,7 +41,7 @@ const PersonalInfoComponent = ({
             firstName: userProfile.given_name || (invitation ? invitation.first_name : ''),
             lastName: userProfile.family_name || (invitation ? invitation.last_name : ''),
             email: userProfile.email || '',
-            company: { id: null, name: '' },
+            company: userProfile.company ? userProfile.company : { id: null, name: '' },
             promoCode: '',
         }
     );
@@ -62,13 +62,16 @@ const PersonalInfoComponent = ({
     }, []);
 
     const onCompanyChange = (ev) => {
-        const newCompany = ev.target.value;
+        let newCompany = ev.target.value;
+        if (newCompany === null || newCompany === undefined) {
+            newCompany = {};
+        }
         setCompanyError(false);
         setPersonalInfo({ ...personalInfo, company: newCompany });
     };
 
     const onSubmit = data => {
-        if (!personalInfo.company.name && showCompanyInput) {
+        if ((!personalInfo.company || !personalInfo.company.name) && showCompanyInput) {
             setCompanyError(true);
             return;
         }
@@ -103,7 +106,7 @@ const PersonalInfoComponent = ({
                         {!isActive &&
                             <div data-testid="personal-info">
                                 <span>
-                                    {`${personalInfo.firstName} ${personalInfo.lastName} ${personalInfo.company.name ? `- ${personalInfo.company.name}` : ''}`}
+                                    {`${personalInfo.firstName} ${personalInfo.lastName} ${(personalInfo.company && personalInfo.company.name) ? `- ${personalInfo.company.name}` : ''}`}
                                 </span>
                                 <br />
                                 <span>
@@ -155,6 +158,7 @@ const PersonalInfoComponent = ({
                                                 value={personalInfo.company}
                                                 inputPlaceholder={companyInputPlaceholder}
                                                 DDLPlaceholder={companyDDLPlaceholder}
+                                                inputProps={{ 'data-testid': 'company' }}
                                             />
                                             {companyError && <div className={styles.fieldError} data-testid="company-error">This field is required.</div>}
                                         </div>
