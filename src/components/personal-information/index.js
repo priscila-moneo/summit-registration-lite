@@ -41,7 +41,7 @@ const PersonalInfoComponent = ({
             firstName: userProfile.given_name || (invitation ? invitation.first_name : ''),
             lastName: userProfile.family_name || (invitation ? invitation.last_name : ''),
             email: userProfile.email || '',
-            company: { id: null, name: '' },
+            company: userProfile.company ? userProfile.company : { id: null, name: '' },
             promoCode: '',
         }
     );
@@ -56,7 +56,12 @@ const PersonalInfoComponent = ({
                 firstName: reservation.owner_first_name ? reservation.owner_first_name : personalInfo.firstName,
                 lastName: reservation.owner_last_name ? reservation.owner_last_name : personalInfo.lastName,
                 email: reservation.owner_email ? reservation.owner_email : personalInfo.email,
-                company: { id: null, name: reservation.owner_company ? reservation.owner_company : personalInfo.company },
+                company: {
+                    id: null,
+                    name: reservation.owner_company
+                        ? reservation.owner_company
+                        : (personalInfo.company && typeof personalInfo.company === 'object' ? personalInfo.company.name : personalInfo.company)
+                },
             });
         }
     }, []);
@@ -64,7 +69,7 @@ const PersonalInfoComponent = ({
     const onCompanyChange = (ev) => {
         const newCompany = ev.target.value;
         setCompanyError(false);
-        setPersonalInfo({ ...personalInfo, company: newCompany });
+        setPersonalInfo({ ...personalInfo, company: { ...personalInfo.company, name: newCompany } });
     };
 
     const onSubmit = data => {
@@ -155,6 +160,7 @@ const PersonalInfoComponent = ({
                                                 value={personalInfo.company}
                                                 inputPlaceholder={companyInputPlaceholder}
                                                 DDLPlaceholder={companyDDLPlaceholder}
+                                                inputProps={{ 'data-testid': 'company' }}
                                             />
                                             {companyError && <div className={styles.fieldError} data-testid="company-error">This field is required.</div>}
                                         </div>

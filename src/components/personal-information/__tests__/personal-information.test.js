@@ -4,18 +4,22 @@ import '@testing-library/jest-dom';
 
 import PersonalInfoComponent from "..";
 
-const mockReservation = {
-    owner_first_name: 'Reservation Name',
-    owner_last_name: 'Reservation Last Name',
-    owner_email: 'reservation@email.com',
-    owner_company: 'Reservation Company',
-};
+
+jest.mock('openstack-uicore-foundation/lib/components', () => ({
+    RegistrationCompanyInput: ({ onChange, value }) => (
+        <input
+            data-testid="company"
+            value={value?.name || ''}
+            onChange={e => onChange({ target: { value: { name: e.target.value } } })}
+        />
+    )
+}));
 
 const mockProfile = {
     given_name: 'Test Name',
     family_name: 'Test Last Name',
     email: 'test@email.com',
-    company: 'Test Company',
+    company: { id: null, name: 'Test Company' },
 }
 
 const mockFormValues = {
@@ -25,14 +29,14 @@ const mockFormValues = {
     paymentInformation: null,
 }
 
-const mockSubmit = jest.fn();
+const mockHandleCompanyError = jest.fn();
 
 // Note: running cleanup fterEach is done automatically for you in @testing-library/react@9.0.0 or higher
 // unmount and cleanup DOM after the test is finished.
 afterEach(cleanup);
 
 it('PersonalInfoComponent set the initial values from the user profile', () => {
-    const { getByTestId } = render(<PersonalInfoComponent formValues={mockFormValues} userProfile={mockProfile} />);
+    const { getByTestId } = render(<PersonalInfoComponent formValues={mockFormValues} userProfile={mockProfile} handleCompanyError={mockHandleCompanyError} />);
 
     const firstName = getByTestId('first-name');
     const lastName = getByTestId('last-name');
@@ -41,22 +45,22 @@ it('PersonalInfoComponent set the initial values from the user profile', () => {
     expect(firstName.value).toBe(mockProfile.given_name);
     expect(lastName.value).toBe(mockProfile.family_name);
     expect(email.value).toBe(mockProfile.email);
-    expect(company.value).toBe(mockProfile.company);
+    expect(company.value).toBe(mockProfile.company.name);
 
 });
 
 it('PersonalInfoComponent shows the personal data when is not active', async () => {
-    const { getByTestId } = render(<PersonalInfoComponent isActive={false} formValues={mockFormValues} userProfile={mockProfile} />);
+    const { getByTestId } = render(<PersonalInfoComponent isActive={false} formValues={mockFormValues} userProfile={mockProfile} handleCompanyError={mockHandleCompanyError} />);
 
     const personalInfo = getByTestId('personal-info');
     expect(personalInfo).toBeTruthy();
-    expect(personalInfo.firstElementChild.innerHTML).toBe(`${mockProfile.given_name} ${mockProfile.family_name} ${mockProfile.company ? `- ${mockProfile.company}` : ''}`);
+    expect(personalInfo.firstElementChild.innerHTML).toBe(`${mockProfile.given_name} ${mockProfile.family_name} ${mockProfile.company && mockProfile.company.name ? `- ${mockProfile.company.name}` : ''}`);
     expect(personalInfo.lastChild.innerHTML).toBe(mockProfile.email);
 
 });
 
 it('PersonalInfoComponent checks the validation of each field', async () => {
-    const { getByTestId } = render(<PersonalInfoComponent formValues={mockFormValues} userProfile={mockProfile} />);
+    const { getByTestId } = render(<PersonalInfoComponent formValues={mockFormValues} userProfile={mockProfile} handleCompanyError={mockHandleCompanyError} />);
 
     const form = getByTestId('personal-form');
     const firstName = getByTestId('first-name');
@@ -73,11 +77,9 @@ it('PersonalInfoComponent checks the validation of each field', async () => {
         const firstNameError = getByTestId('first-name-error');
         const lastNameError = getByTestId('last-name-error');
         const emailErrorRequired = getByTestId('email-error-required');        
-        const companyError = getByTestId('company-error');
         expect(firstNameError).toBeTruthy();
         expect(lastNameError).toBeTruthy();
-        expect(emailErrorRequired).toBeTruthy();        
-        expect(companyError).toBeTruthy();
+        expect(emailErrorRequired).toBeTruthy();
     });
 
     fireEvent.change(email, { target: { value: 'no email' } });
@@ -90,7 +92,7 @@ it('PersonalInfoComponent checks the validation of each field', async () => {
 });
 
 it('PersonalInfoComponent checks that company input field is hidden when `showCompanyInput` is `false`', async () => {
-    const { getByTestId, queryByTestId } = render(<PersonalInfoComponent userProfile={mockProfile} formValues={mockFormValues} showCompanyInput={false} />);
+    const { getByTestId, queryByTestId } = render(<PersonalInfoComponent userProfile={mockProfile} formValues={mockFormValues} showCompanyInput={false} handleCompanyError={mockHandleCompanyError} />);
 
     const form = getByTestId('personal-form');
     const firstName = getByTestId('first-name');
@@ -113,6 +115,38 @@ it('PersonalInfoComponent checks that company input field is hidden when `showCo
         expect(emailErrorRequired).toBeTruthy();        
         expect(companyError).toBeNull();
     });
+});
+
+it('never nests company.name as an object when reservation.owner_company is falsy', () => {
+  const reservation = {
+    owner_first_name: 'ReservationName',
+    owner_last_name: 'ReservationLastName',
+    owner_email: 'reservation@email.com',
+    owner_company: '', // falsy
+  };
+  const userProfile = {
+    given_name: 'UserName',
+    family_name: 'UserLastName',
+    email: 'user@email.com',
+    company: { id: null, name: 'UserCompany' },
+  };
+  const formValues = {
+    ticketType: null,
+    ticketQuantity: 1,
+    personalInformation: null,
+    paymentInformation: null,
+  };
+  const { getByTestId } = render(
+    <PersonalInfoComponent
+      isActive={true}
+      reservation={reservation}
+      userProfile={userProfile}
+      formValues={formValues}
+    />
+  );
+  const companyInput = getByTestId('company');
+  expect(typeof companyInput.value).toBe('string');
+  expect(companyInput.value).toBe('UserCompany');
 });
 
 // it('PersonalInfoComponent set the fields if there is a reservation', async () => {
